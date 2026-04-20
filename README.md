@@ -1,4 +1,4 @@
-# FastAPI Boilerplate OSS
+# FastAPI Boilerplate
 
 > **Vision** : Un boilerplate open-source, gratuit, clonable en 5 minutes, adapté à n'importe quel type de projet, évolutif à n'importe quel horizon — de la SaaS solo au microservice d'équipe.
 
@@ -9,8 +9,8 @@
 ### Prérequis
 
 - **Python** : 3.12+
-- **uv** : installé (recommandé)
-- **Docker** : requis pour la DB (et Redis si activé)
+- **uv** : recommandé (optionnel) — sinon `pip` fonctionne aussi
+- **Docker** : requis pour Postgres (et Redis si activé)
 - **make** :
   - Sur Linux/macOS : présent par défaut
   - Sur Windows : installe `make` (ex: via Chocolatey/Git Bash) ou utilise les commandes équivalentes ci-dessous
@@ -20,17 +20,38 @@
 1. Cloner et préparer l'environnement :
 
 ```bash
-git clone <URL_DU_REPO> fastapi-boilerplate
-cd fastapi-boilerplate
+git clone https://github.com/nb-bora/Boilerplate.git
+cd Boilerplate
 cp .env.example .env
 ```
 
-1. Démarrer la DB et l’API :
+2. Démarrer la DB :
 
 ```bash
 docker compose up -d db
+```
+
+3. Installer les dépendances + lancer l’API (choisis une option) :
+
+- Option A (recommandé) : via `make` (choisit `uv` si présent, sinon `pip`)
+
+```bash
+make dev
+```
+
+- Option B : manuel via `uv`
+
+```bash
 uv sync
-alembic upgrade head
+uv run alembic upgrade head
+uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+```
+
+- Option C : manuel via `pip`
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m alembic upgrade head
 fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
@@ -55,6 +76,11 @@ Tu dois voir un `**200 OK**` et une réponse au format enveloppe (section [Contr
 ```bash
 docker compose up --build
 ```
+
+> Note: Redis est un service optionnel dans `docker-compose.yml` (profil `redis`). Pour l’activer:
+>
+> - `docker compose --profile redis up -d redis`
+> - puis mettre `REDIS_ENABLED=true` dans `.env` (ou variables d’environnement)
 
 ---
 
@@ -175,6 +201,8 @@ docs/adr/
 
 ## 4. Arborescence cible
 
+> Cette section reflète **l’état actuel** du dépôt (V1). Les éléments “prévu” sont listés en roadmap.
+
 ```
 ./
 ├── app/
@@ -186,7 +214,7 @@ docs/adr/
 │   │   ├── middleware/
 │   │   │   ├── request_id.py           # Middleware request_id / correlation_id
 │   │   │   └── security_headers.py     # X-Content-Type-Options, CSP, etc.
-│   │   └── exceptions.py              # Exceptions techniques partagées
+│   │   └── context.py                  # Contextvars request-scoped (request_id/ip)
 │   │
 │   ├── domain/
 │   │   ├── base.py                     # Entity(id: ULID), ValueObject, DomainEvent
@@ -230,13 +258,16 @@ docs/adr/
 │   │   │   │   ├── base.py             # Base ORM (id, created_at, updated_at)
 │   │   │   │   ├── user.py             # Modèle ORM UserModel
 │   │   │   │   └── audit_log.py        # Modèle ORM AuditLogModel
+│   │   │   │   └── refresh_token.py     # Modèle ORM RefreshTokenModel
 │   │   │   ├── repositories/
 │   │   │   │   ├── user.py             # Impl SQLAlchemy IUserRepository
 │   │   │   │   └── audit_log.py        # Impl SQLAlchemy IAuditRepository
+│   │   │   │   └── refresh_token.py     # Impl SQLAlchemy refresh tokens
 │   │   │   ├── mappers/
 │   │   │   │   └── user.py             # ORM ↔ Domain entity
 │   │   │   └── unit_of_work.py         # AsyncUnitOfWork (transaction handling)
 │   │   └── cache/
+│   │       ├── store.py                # ICacheStore + Redis/InMemory stores
 │   │       ├── rate_limiter.py         # Impl Redis + fallback in-memory
 │   │       └── idempotency.py          # Impl Redis idempotency store
 │   │
@@ -244,10 +275,10 @@ docs/adr/
 │   │   ├── db.py                       # Engine + AsyncSession factory + lifespan
 │   │   ├── redis.py                    # Client Redis + lifespan (optionnel)
 │   │   ├── clock.py                    # Impl SystemClock
-│   │   └── event_bus.py               # Impl bus local sync (post-commit)
+│   │   ├── event_bus.py               # Impl bus local sync (post-commit)
+│   │   └── audit_handler.py           # Handler d'audit (post-commit, async best-effort)
 │   │
 │   └── common/
-│       ├── pagination.py               # PaginationParams + PaginatedResponse
 │       ├── response_envelope.py        # SuccessEnvelope, ErrorEnvelope, ErrorDetail
 │       └── constants.py               # Codes TECH.* / DOMAIN.*
 │
@@ -255,31 +286,16 @@ docs/adr/
 │   ├── env.py                          # Config async (documentée)
 │   ├── script.py.mako
 │   └── versions/
-│       └── 0001_initial.py             # Migration initiale (users + audit_logs)
+│       ├── 0001_initial.py             # Migration initiale
+│       └── 0002_auth_audit.py          # Auth + audit + refresh_tokens
 │
 ├── tests/
 │   ├── conftest.py                     # Fixtures globales, Testcontainers setup
-│   ├── unit/
-│   │   ├── domain/
-│   │   │   ├── test_user_entity.py
-│   │   │   └── test_email_value_object.py
-│   │   └── application/
-│   │       ├── test_register_usecase.py
-│   │       └── test_login_usecase.py
-│   ├── integration/
-│   │   ├── test_health.py
-│   │   ├── test_auth.py
-│   │   └── test_users.py
 │   └── contract/
-│       ├── test_response_envelope.py   # Enveloppe conforme sur toutes les routes
-│       ├── test_error_codes.py         # Codes TECH./DOMAIN. présents et stables
+│       ├── test_envelope.py            # Enveloppe conforme sur les routes de base
 │       └── test_headers.py             # X-Request-Id toujours présent
-│
-├── scripts/
-│   └── seeds/
-│       └── v1/
-│           ├── dev.py                  # Seed dev (admin user, données pagination)
-│           └── test.py                 # Seed test (fixtures minimales)
+│       ├── test_rate_limit.py          # Rate limiting (contract)
+│       └── test_idempotency.py         # Idempotency (contract)
 │
 ├── docs/
 │   ├── adr/                            # Architecture Decision Records
@@ -293,8 +309,8 @@ docs/adr/
 │
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                      # lint + mypy + pytest + audit + trivy
-│       └── docker.yml                  # Build multi-arch (amd64 + arm64)
+│       ├── ci.yml                      # lint + pytest
+│       └── docker.yml                  # build/push image + deploy (tags semver)
 │
 ├── pyproject.toml
 ├── uv.lock
@@ -870,59 +886,22 @@ Infrastructure de tests fiable, CI complète, Docker prêt pour prod. Livrable :
 
 ### Stratégie de tests
 
-#### Pyramide
+#### Statut V1 (implémenté dans ce dépôt)
 
-```
-          /\
-         /  \  Tests de contrat (5%)
-        /----\
-       /      \  Tests d'intégration (25%)
-      /--------\
-     /          \  Tests unitaires (70%)
-    /____________\
-```
+- **Tests de contrat** (`tests/contract/`) :
+  - enveloppe de réponse uniforme,
+  - headers de traçage,
+  - idempotency (register),
+  - rate limiting (login/register).
+- **Tests basiques** : `tests/test_health.py` (live/ready + headers).
 
-#### Tests unitaires (`tests/unit/`)
-
-- **Scope** : `domain/` + `application/`
-- **Pas de DB**, pas de Redis, pas de FastAPI
-- **Ports mockés** via `unittest.mock` ou fixtures Pytest
-- **Coverage cible** : ≥ 80% sur `domain/` et `application/`
-
-```python
-# Exemple : tests/unit/application/test_register_usecase.py
-
-async def test_register_user_success(mock_user_repo, mock_event_bus, system_clock):
-    usecase = RegisterUser(repo=mock_user_repo, bus=mock_event_bus, clock=system_clock)
-    result = await usecase.execute(RegisterInput(email="test@example.com", password="secure123"))
-    assert result.user_id is not None
-    mock_event_bus.publish.assert_called_once_with(UserRegistered(...))
-```
-
-#### Tests d'intégration (`tests/integration/`)
-
-- **Testcontainers** : Postgres + Redis démarrés par Pytest, pas de docker-compose externe
-- **Isolation** : rollback après chaque test (transaction wrappée)
-- **Client HTTP** : `httpx.AsyncClient` avec l'app FastAPI en mode test
-
-```python
-# tests/conftest.py
-
-@pytest.fixture(scope="session")
-def postgres_container():
-    with PostgresContainer("postgres:16") as pg:
-        yield pg
-
-@pytest.fixture
-async def db_session(postgres_container):
-    # Session wrappée dans une transaction rollbackée après chaque test
-    ...
-```
+> Note: la structure `tests/unit/` et `tests/integration/` est une cible recommandée (voir roadmap V2),
+> mais elle n’est pas encore présente dans ce repo.
 
 #### Tests de contrat (`tests/contract/`)
 
 ```python
-# Vérifie que TOUTES les routes respectent l'enveloppe
+# Exemple (simplifié) : vérifie le contrat d'enveloppe + headers
 
 async def test_all_success_responses_have_envelope(client):
     response = await client.get("/api/v1/health/live")
@@ -931,10 +910,8 @@ async def test_all_success_responses_have_envelope(client):
     assert "meta" in response.json()
     assert "X-Request-Id" in response.headers
 
-async def test_error_codes_are_stable(client):
-    response = await client.post("/api/v1/auth/login", json={"email": "bad", "password": "bad"})
-    errors = response.json()["errors"]
-    assert all(e["code"].startswith(("TECH.", "DOMAIN.")) for e in errors)
+async def test_rate_limiting_contract(client):
+    ...
 ```
 
 ### CI GitHub Actions
@@ -949,25 +926,26 @@ lint:
   - ruff check .
   - ruff format --check .
 
-typecheck:             # optionnel, flag MYPY_ENABLED
-  - mypy app/
-
 test:
-  - pytest tests/unit/ --cov=app/domain --cov=app/application --cov-fail-under=80
-  - pytest tests/integration/ tests/contract/
-
-security:
-  - pip-audit                    # vulnérabilités dépendances Python
-  - trivy image $IMAGE_NAME      # vulnérabilités image Docker
+  - pytest
 ```
 
 `**.github/workflows/docker.yml**` :
 
 ```yaml
 # Déclencheurs : tags v*.*.* (semver)
-# Build multi-arch : linux/amd64 + linux/arm64
-# Push vers GitHub Container Registry (ghcr.io)
+# Build + push vers GitHub Container Registry (ghcr.io)
+# Job deploy (optionnel) : via webhook ou SSH, protégé par environment GitHub "production"
 ```
+
+#### Déploiement via GitHub Actions (workflow `docker.yml`)
+
+Le job `deploy` s’exécute après le build/push et supporte 2 modes :
+
+- **Webhook (recommandé)** : configure `DEPLOY_WEBHOOK_URL`
+- **SSH (alternative)** : configure `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_SSH_COMMAND`
+
+Si aucune méthode n’est configurée, le job échoue volontairement pour éviter un “faux vert”.
 
 ### Docker
 
@@ -1049,8 +1027,165 @@ Chaque guide suit la même structure : contexte → étapes numérotées → exe
 | `enable-soft-delete.md`   | Activer le pattern sur une entité                        |
 | `enable-opentelemetry.md` | Brancher OTel sans modifier le domaine                   |
 
+### Guide complet (dans ce README) : ajouter un modèle → publier ses routes
+
+Cette section décrit **le chemin complet** pour ajouter un nouveau “modèle” (entité métier) et le rendre
+accessible via l’API, en respectant la Clean Architecture du repo.
+
+> Terminologie: dans le code, on parle plutôt d’**Entity / ValueObject / Repository Port / Use-case / Adapter HTTP**.
+> Le “model” au sens SQLAlchemy est dans `app/adapters/persistence/models/*`.
+
+#### 0) Choisir le périmètre (avant d’écrire du code)
+
+- **Définir l’aggregate**: quel objet est la source de vérité (ex: `User`) ?
+- **Définir l’ID**: ULID string (26 chars) comme partout ailleurs.
+- **Définir les invariants** (domaine): ce qui doit toujours être vrai.
+- **Lister les routes** à publier: lecture seule, CRUD, commandes ?
+
+#### 1) Couche Domain (`app/domain/…`) — la vérité métier
+
+1. Créer le package:
+   - `app/domain/<feature>/__init__.py`
+2. Ajouter l’entité:
+   - `app/domain/<feature>/entity.py`
+3. Ajouter les value objects (si besoin):
+   - `app/domain/<feature>/value_objects.py`
+4. Ajouter les exceptions métier:
+   - `app/domain/<feature>/exceptions.py` (codes `DOMAIN.*`)
+5. Ajouter le port repository:
+   - `app/domain/<feature>/repository.py` (Protocol/Port)
+6. (Option) Ajouter des événements de domaine:
+   - `app/domain/<feature>/events.py`
+
+Règles importantes:
+- **Le domaine ne connaît pas** FastAPI/HTTP/SQLAlchemy/Redis.
+- Les exceptions domaine portent les codes (`DOMAIN.*`) et sont mappées en HTTP par l’adapter.
+
+#### 2) Couche Application (`app/application/…`) — use-cases et DTO
+
+1. Créer le package:
+   - `app/application/<feature>/__init__.py`
+2. Définir les DTO (inputs/outputs):
+   - `app/application/<feature>/dto.py`
+3. Implémenter les use-cases:
+   - ex: `app/application/<feature>/create.py`
+   - ex: `app/application/<feature>/get.py`
+   - ex: `app/application/<feature>/list.py`
+
+Règles importantes:
+- Les use-cases consomment des **ports** (repos, clock, event bus) et parlent en **objets domaine/DTO**.
+- La transaction est gérée via le **Unit of Work** (`app/adapters/persistence/unit_of_work.py`) côté adapter.
+
+#### 3) Persistance SQLAlchemy (`app/adapters/persistence/…`) — matérialiser en DB
+
+1. Ajouter le modèle ORM:
+   - `app/adapters/persistence/models/<feature>.py`
+2. Ajouter le mapper ORM↔Domain:
+   - `app/adapters/persistence/mappers/<feature>.py`
+3. Ajouter le repository concret:
+   - `app/adapters/persistence/repositories/<feature>.py`
+4. Câbler le repo dans le Unit of Work:
+   - `app/adapters/persistence/unit_of_work.py` (ajouter l’attribut + init)
+
+Bonnes pratiques SQLAlchemy async (repo):
+- **Pas de lazy-loading implicite**: charger explicitement (ex: `selectinload`) si relations nécessaires.
+- Favoriser des méthodes repository explicites (`get_by_id`, `list_for_user`, etc.) plutôt que “magie ORM”.
+
+#### 4) Migration Alembic (`alembic/versions/…`) — créer/évoluer le schéma
+
+1. Générer une migration:
+
+```bash
+python -m alembic revision --autogenerate -m "add <feature>"
+```
+
+2. Relire la migration (contraintes, indexes, FK).
+3. Appliquer:
+
+```bash
+python -m alembic upgrade head
+```
+
+#### 5) Adapter HTTP (`app/adapters/http/…`) — schémas + routes
+
+1. Définir les schémas Pydantic HTTP:
+   - `app/adapters/http/schemas/<feature>.py`
+2. Ajouter les endpoints V1:
+   - `app/adapters/http/v1/<feature>.py`
+3. Publier le router dans:
+   - `app/adapters/http/v1/router.py` (inclure le router feature)
+
+Notes:
+- Les réponses doivent respecter l’enveloppe (`app/common/response_envelope.py`) via `success()` / `error()`.
+- Les erreurs domaine doivent remonter en enveloppe via `app/adapters/http/exception_handlers.py`.
+
+#### 6) Dépendances (wiring) (`app/adapters/http/dependencies.py`)
+
+Si ton endpoint a besoin de la DB/UoW/cache:
+- réutiliser `get_uow`, `get_db`, `get_cache_store`, `get_current_user_id`.
+
+#### 7) Tests (contract) — prouver le contrat HTTP
+
+Ajouter (ou étendre) des tests sous `tests/contract/`:
+- enveloppe et headers,
+- codes d’erreur attendus,
+- si applicable: rate limiting / idempotency.
+
+Exécuter:
+
+```bash
+python -m pytest
+```
+
+#### 8) Publication / release (routes en prod)
+
+Une fois mergé sur `main`:
+- CI (`.github/workflows/ci.yml`) exécute lint + tests.
+- Pour publier une version image + (option) déployer:
+  - taguer en SemVer `vX.Y.Z` → déclenche `.github/workflows/docker.yml` (build/push GHCR + deploy).
+
+---
+
+### Relations entre modèles : comment les matérialiser proprement
+
+Il y a **2 niveaux** à traiter: **domaine** (conceptuel) puis **persistance** (SQL).
+
+#### 1) Au niveau domaine (recommandé)
+
+- **Référencer par identifiant** (ULID string) plutôt que tenir des graphes d’objets lourds.
+  - Ex: `Order.user_id: str` plutôt que `Order.user: User`.
+- **Définir l’aggregate root**:
+  - Les invariants cross-entities se gèrent via l’aggregate root et des méthodes métier.
+- **Éviter de faire dépendre le domaine de l’ORM**:
+  - La navigation objet (“relationship”) est une préoccupation de lecture/persistance, pas un invariant métier.
+
+#### 2) Au niveau DB/ORM (SQLAlchemy + Alembic)
+
+- Ajouter une **Foreign Key** au schéma:
+  - `user_id` (FK → `users.id`) avec index si nécessaire.
+- Déclarer une `relationship()` **si utile** (souvent pour les requêtes/joins), mais:
+  - charger explicitement (`selectinload`, `joinedload`) dans les repositories,
+  - éviter le lazy implicite en async (sinon surprises + erreurs).
+- Dans les mappers, **contrôler ce qui est mappé**:
+  - pour V1, mapper l’entité principale + IDs des relations suffit souvent,
+  - si tu exposes une relation via l’API, c’est un **choix de DTO** (Application/HTTP), pas automatique.
+
+#### 3) Exemple mental (sans imposer un style unique)
+
+- **1-N** (User → AuditLogs):
+  - Domaine: `AuditLog.user_id: str | None`
+  - DB: `audit_logs.user_id` FK + index
+  - Repository: méthodes `list_for_user(user_id)` et `add(log)`
+
+- **N-N** (User ↔ Role):
+  - Domaine: `User.roles: list[Role]`
+  - DB: table d’association `user_roles(user_id, role)`
+  - Repository: charger roles explicitement quand nécessaire (ex: auth)
+
 
 ### Seeds versionnés
+
+> Statut V1: **non implémenté** (placeholder dans le `Makefile`). Voir roadmap si tu veux l’ajouter.
 
 ```python
 # scripts/seeds/v1/dev.py
@@ -1075,7 +1210,7 @@ Avant chaque déploiement en production :
 - Migrations Alembic jouées : `alembic upgrade head`
 - Sauvegardes DB configurées et testées
 - `pip-audit` passé sans vulnérabilités critiques
-- `trivy` passé sur l'image Docker
+- (optionnel) scan image Docker (Trivy, etc.)
 - Healthchecks `/api/v1/health/ready` retournent `200 OK`
 - `CHANGELOG.md` mis à jour avec la version
 
