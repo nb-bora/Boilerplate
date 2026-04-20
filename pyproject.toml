@@ -17,6 +17,8 @@ dependencies = [
   "python-ulid>=2.0",
   "structlog>=24.0",
   "redis>=5.0",
+  "python-jose[cryptography]>=3.3",
+  "passlib[bcrypt]>=1.7",
 ]
 
 [dependency-groups]
@@ -25,7 +27,11 @@ dev = [
   "mypy>=1.10",
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
+  "pytest-cov>=5.0",
   "httpx>=0.27",
+  "testcontainers[postgres,redis]>=4.0",
+  "faker>=25.0",
+  "asgi-lifespan>=2.1",
 ]
 
 [tool.ruff]
@@ -34,6 +40,12 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+ignore = [
+  "B008",  # FastAPI: Depends(...) in signature defaults is idiomatic
+  "E402",  # Our modules start with long docstrings/workflows before imports
+  "UP017", # datetime.UTC alias is optional stylistic modernisation
+  "UP042", # Enum patterns like `class Role(str, Enum)` are idiomatic
+]
 
 [tool.ruff.format]
 quote-style = "double"
