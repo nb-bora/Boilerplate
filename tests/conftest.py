@@ -41,6 +41,8 @@ Cas alternatifs / exceptions
   remonteront dans Pytest au lieu d'être transformées en réponse HTTP enveloppée.
 """
 
+import asyncio
+
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import Request
@@ -76,12 +78,15 @@ class _FakeUsersRepo:
         self._users_by_id: dict[str, User] = {}
 
     async def get_by_email(self, email: str) -> User | None:
+        await asyncio.sleep(0)
         return self._users_by_email.get(email.lower().strip())
 
     async def get_by_id(self, user_id: str) -> User | None:
+        await asyncio.sleep(0)
         return self._users_by_id.get(user_id)
 
     async def add(self, user: User) -> None:
+        await asyncio.sleep(0)
         self._users_by_email[user.email.value] = user
         self._users_by_id[user.id] = user
 
@@ -90,20 +95,21 @@ class _FakeRefreshTokensRepo:
     """Faux repo refresh tokens (no-op / always active)."""
 
     async def add_active(self, *, user_id: str, jti: str, expires_days: int) -> None:  # noqa: ARG002
-        return
+        await asyncio.sleep(0)
 
     async def get_active(self, *, jti: str):  # noqa: ANN001, ARG002
+        await asyncio.sleep(0)
         return object()
 
     async def revoke(self, *, jti: str) -> None:  # noqa: ARG002
-        return
+        await asyncio.sleep(0)
 
 
 class _FakeAuditRepo:
     """Faux repo audit (no-op)."""
 
     async def add(self, audit_log) -> None:  # noqa: ANN001, ARG002
-        return
+        await asyncio.sleep(0)
 
 
 class _FakeUow:
@@ -125,15 +131,18 @@ class _FakeUow:
         self._events: list = []
 
     async def __aenter__(self):
+        await asyncio.sleep(0)
         return self
 
     async def __aexit__(self, exc_type, exc, tb):  # noqa: ANN001
+        await asyncio.sleep(0)
         return
 
     def collect_event(self, event) -> None:  # noqa: ANN001
         self._events.append(event)
 
     async def commit(self) -> None:
+        await asyncio.sleep(0)
         return
 
 
@@ -147,6 +156,7 @@ async def contract_app(app):
     """
 
     async def _override_get_uow(request: Request):  # noqa: ARG001
+        await asyncio.sleep(0)
         return _FakeUow()
 
     app.dependency_overrides[get_uow] = _override_get_uow
