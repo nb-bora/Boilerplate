@@ -38,6 +38,12 @@ jobs:
     environment: production
     permissions:
       contents: read
+    env:
+      DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+      DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_SSH_COMMAND: ${{ secrets.DEPLOY_SSH_COMMAND }}
     steps:
       - name: Resolve image tag
         id: vars
@@ -50,29 +56,29 @@ jobs:
           echo "image=ghcr.io/${{ github.repository }}:${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy via webhook (recommended)
-        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
+        if: ${{ env.DEPLOY_WEBHOOK_URL != '' }}
         shell: bash
         run: |
           curl -fsS -X POST \
             -H "Content-Type: application/json" \
             -d "{\"image\":\"${{ steps.vars.outputs.image }}\",\"ref\":\"${{ github.ref_name }}\"}" \
-            "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+            "${{ env.DEPLOY_WEBHOOK_URL }}"
 
       - name: Deploy via SSH (alternative)
-        if: ${{ secrets.DEPLOY_SSH_HOST != '' && secrets.DEPLOY_SSH_USER != '' && secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_SSH_COMMAND != '' }}
+        if: ${{ env.DEPLOY_SSH_HOST != '' && env.DEPLOY_SSH_USER != '' && env.DEPLOY_SSH_KEY != '' && env.DEPLOY_SSH_COMMAND != '' }}
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          ssh-private-key: ${{ env.DEPLOY_SSH_KEY }}
 
       - name: Run SSH deploy command
-        if: ${{ secrets.DEPLOY_SSH_HOST != '' && secrets.DEPLOY_SSH_USER != '' && secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_SSH_COMMAND != '' }}
+        if: ${{ env.DEPLOY_SSH_HOST != '' && env.DEPLOY_SSH_USER != '' && env.DEPLOY_SSH_KEY != '' && env.DEPLOY_SSH_COMMAND != '' }}
         shell: bash
         run: |
-          ssh -o StrictHostKeyChecking=no "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
-            "${{ secrets.DEPLOY_SSH_COMMAND }}"
+          ssh -o StrictHostKeyChecking=no "${{ env.DEPLOY_SSH_USER }}@${{ env.DEPLOY_SSH_HOST }}" \
+            "${{ env.DEPLOY_SSH_COMMAND }}"
 
       - name: Fail if no deploy method configured
-        if: ${{ secrets.DEPLOY_WEBHOOK_URL == '' && (secrets.DEPLOY_SSH_HOST == '' || secrets.DEPLOY_SSH_USER == '' || secrets.DEPLOY_SSH_KEY == '' || secrets.DEPLOY_SSH_COMMAND == '') }}
+        if: ${{ env.DEPLOY_WEBHOOK_URL == '' && (env.DEPLOY_SSH_HOST == '' || env.DEPLOY_SSH_USER == '' || env.DEPLOY_SSH_KEY == '' || env.DEPLOY_SSH_COMMAND == '') }}
         shell: bash
         run: |
           echo "Aucune méthode de déploiement configurée."
