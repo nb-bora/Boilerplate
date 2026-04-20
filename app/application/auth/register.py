@@ -62,6 +62,7 @@ from app.domain.users.value_objects import Email, HashedPassword
 
 class RegisterUser:
     """Use-case d'inscription."""
+
     def __init__(self, *, uow) -> None:  # noqa: ANN001
         self.uow = uow
 

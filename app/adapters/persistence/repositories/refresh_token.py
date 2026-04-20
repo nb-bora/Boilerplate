@@ -39,6 +39,7 @@ from app.adapters.persistence.models.refresh_token import RefreshTokenModel
 
 class SqlAlchemyRefreshTokenRepository:
     """Implémentation SQLAlchemy pour les refresh tokens."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

@@ -38,11 +38,13 @@ def _ulid_str() -> str:
 
 class Base(DeclarativeBase):
     """Base declarative SQLAlchemy."""
+
     pass
 
 
 class BaseModel(Base):
     """Mixin de colonnes communes (id + timestamps)."""
+
     __abstract__ = True
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True, default=_ulid_str)

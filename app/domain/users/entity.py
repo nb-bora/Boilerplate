@@ -31,6 +31,7 @@ from app.domain.users.value_objects import Email, HashedPassword
 
 class Role(str, Enum):
     """Rôle utilisateur (RBAC minimal)."""
+
     ADMIN = "admin"
     USER = "user"
 
@@ -38,6 +39,7 @@ class Role(str, Enum):
 @dataclass(slots=True)
 class User(Entity):
     """Entité User (domaine)."""
+
     email: Email = field(default_factory=lambda: Email("user@example.com"))
     hashed_password: HashedPassword = field(default_factory=lambda: HashedPassword(""))
     roles: list[Role] = field(default_factory=lambda: [Role.USER])

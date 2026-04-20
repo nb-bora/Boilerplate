@@ -53,6 +53,7 @@ class ICacheStore(Protocol):
     - `delete` : supprime une clé.
     - `incr` : incrémente un compteur et garantit un TTL (fenêtre rate limit).
     """
+
     async def get(self, key: str) -> str | None: ...
 
     async def set(self, key: str, value: str, ttl: int) -> None: ...
@@ -70,6 +71,7 @@ class RedisCacheStore(ICacheStore):
     - Utilise `SET ... EX` pour TTL.
     - `incr` : pipeline INCR + TTL, et applique EXPIRE si TTL absent.
     """
+
     def __init__(self, client: Redis) -> None:
         self._client = client
 
@@ -110,6 +112,7 @@ class InMemoryCacheStore(ICacheStore):
     Cas alternatifs
     - Si la valeur existante n'est pas un int lors de `incr`, repart à 1.
     """
+
     def __init__(self) -> None:
         self._data: dict[str, _Entry] = {}
         self._lock = asyncio.Lock()

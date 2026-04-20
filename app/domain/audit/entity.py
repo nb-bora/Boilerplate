@@ -32,6 +32,7 @@ from app.domain.base import Entity
 @dataclass(slots=True)
 class AuditLog(Entity):
     """Enregistrement d'audit."""
+
     user_id: str | None = None
     action: str = ""
     resource: str = ""

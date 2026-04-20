@@ -23,6 +23,7 @@ from app.domain.clock import Clock
 
 class SystemClock(Clock):
     """Horloge système UTC."""
+
     def now(self) -> datetime:
         """Retourne l'heure courante UTC (timezone-aware)."""
         return datetime.now(timezone.utc)

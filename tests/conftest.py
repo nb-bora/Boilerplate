@@ -70,6 +70,7 @@ class _FakeUsersRepo:
     Objectif
     - Eviter Postgres tout en permettant des workflows simples (création + lookup).
     """
+
     def __init__(self) -> None:
         self._users_by_email: dict[str, User] = {}
         self._users_by_id: dict[str, User] = {}
@@ -87,6 +88,7 @@ class _FakeUsersRepo:
 
 class _FakeRefreshTokensRepo:
     """Faux repo refresh tokens (no-op / always active)."""
+
     async def add_active(self, *, user_id: str, jti: str, expires_days: int) -> None:  # noqa: ARG002
         return
 
@@ -99,6 +101,7 @@ class _FakeRefreshTokensRepo:
 
 class _FakeAuditRepo:
     """Faux repo audit (no-op)."""
+
     async def add(self, audit_log) -> None:  # noqa: ANN001, ARG002
         return
 
@@ -114,6 +117,7 @@ class _FakeUow:
     Limitation
     - Aucune transaction réelle, aucun dispatch d'event (suffisant pour tests de contrat HTTP).
     """
+
     def __init__(self) -> None:
         self.users = _FakeUsersRepo()
         self.refresh_tokens = _FakeRefreshTokensRepo()
@@ -141,6 +145,7 @@ async def contract_app(app):
     Détail important
     - Le param `request` doit être typé `fastapi.Request` pour être traité comme dépendance, sinon 422.
     """
+
     async def _override_get_uow(request: Request):  # noqa: ARG001
         return _FakeUow()
 

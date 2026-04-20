@@ -43,6 +43,7 @@ select = ["E", "F", "I", "B", "UP"]
 ignore = [
   "B008",  # FastAPI: Depends(...) in signature defaults is idiomatic
   "E402",  # Our modules start with long docstrings/workflows before imports
+  "E501",  # Docstrings/documentation can exceed line length
   "UP017", # datetime.UTC alias is optional stylistic modernisation
   "UP042", # Enum patterns like `class Role(str, Enum)` are idiomatic
 ]

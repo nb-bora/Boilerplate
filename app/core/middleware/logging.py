@@ -72,6 +72,7 @@ def _parse_traceparent(value: str | None) -> tuple[str | None, str | None]:
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Middleware Starlette: log fin de requête en JSON (structlog)."""
+
     async def dispatch(self, request: Request, call_next):
         start = time.perf_counter()
         response = await call_next(request)

@@ -30,6 +30,7 @@ from app.domain.users.repository import IUserRepository
 
 class SqlAlchemyUserRepository(IUserRepository):
     """Implémentation SQLAlchemy du port `IUserRepository`."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

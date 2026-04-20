@@ -73,6 +73,7 @@ class ErrorDetail(BaseModel):
     - `message` : message lisible humain.
     - `field` : chemin du champ en erreur (optionnel), ex: "email".
     """
+
     code: str
     message: str
     field: str | None = None
@@ -85,11 +86,13 @@ class EnvelopeMeta(BaseModel):
     Convention
     - `request_id` : toujours présent et identique au header `X-Request-Id`.
     """
+
     request_id: str
 
 
 class SuccessEnvelope(BaseModel):
     """Enveloppe de succès uniforme."""
+
     success: Literal[True] = True
     data: Any
     message: str | None = None
@@ -99,6 +102,7 @@ class SuccessEnvelope(BaseModel):
 
 class ErrorEnvelope(BaseModel):
     """Enveloppe d'erreur uniforme."""
+
     success: Literal[False] = False
     data: None = None
     message: str

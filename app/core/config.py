@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     - Les champs sont volontairement "DX-friendly" en dev.
     - En prod, certaines politiques doivent être satisfaites (ex: secret fort, CORS strict).
     """
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_ENV: str = Field(default="dev")

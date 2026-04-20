@@ -32,6 +32,7 @@ from app.domain.audit.repository import IAuditRepository
 
 class SqlAlchemyAuditRepository(IAuditRepository):
     """Implémentation SQLAlchemy du port `IAuditRepository`."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

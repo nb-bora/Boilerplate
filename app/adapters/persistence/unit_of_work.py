@@ -52,6 +52,7 @@ from app.infrastructure.event_bus import LocalEventBus
 
 class AsyncUnitOfWork:
     """Implémentation UoW pour SQLAlchemy AsyncSession."""
+
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], event_bus: LocalEventBus):
         self._session_factory = session_factory
         self._event_bus = event_bus

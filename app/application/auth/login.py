@@ -55,6 +55,7 @@ from app.domain.users.exceptions import InvalidCredentials, UserInactive
 
 class LoginUser:
     """Use-case de connexion."""
+
     def __init__(self, *, uow) -> None:  # noqa: ANN001
         self.uow = uow
 

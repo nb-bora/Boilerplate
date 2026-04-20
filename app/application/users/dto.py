@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 class UserOutput(BaseModel):
     """Sortie applicative d'un user (profil)."""
+
     id: str
     email: str
     roles: list[str]

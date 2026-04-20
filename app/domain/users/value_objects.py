@@ -30,6 +30,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class Email:
     """Email normalisé (lower/strip) avec validation minimale."""
+
     value: str
 
     def __post_init__(self) -> None:
@@ -48,4 +49,5 @@ class Email:
 @dataclass(frozen=True, slots=True)
 class HashedPassword:
     """Value object représentant un hash (pas un mot de passe en clair)."""
+
     value: str

@@ -24,4 +24,5 @@ from app.domain.base import DomainEvent
 
 class EventBusPort(Protocol):
     """Port minimal d'un bus d'événements."""
+
     def publish(self, event: DomainEvent) -> None: ...

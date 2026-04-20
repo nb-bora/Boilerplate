@@ -55,6 +55,7 @@ def make_audit_handler(session_factory: async_sessionmaker[AsyncSession]):
 
     def handle(event: DomainEvent) -> None:
         """Handler sync (compatible bus) qui planifie une écriture async."""
+
         async def _write() -> None:
             async with session_factory() as session:
                 repo = SqlAlchemyAuditRepository(session)

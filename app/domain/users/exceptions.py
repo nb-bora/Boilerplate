@@ -25,29 +25,34 @@ from dataclasses import dataclass
 @dataclass(slots=True)
 class DomainError(Exception):
     """Base des erreurs métier stables (code + message)."""
+
     code: str
     message: str
 
 
 class UserAlreadyExists(DomainError):
     """Erreur métier : email déjà enregistré."""
+
     def __init__(self) -> None:
         super().__init__(code="DOMAIN.USER.ALREADY_EXISTS", message="Email already registered")
 
 
 class InvalidCredentials(DomainError):
     """Erreur technique/métier : credentials invalides (anti-énumération)."""
+
     def __init__(self) -> None:
         super().__init__(code="TECH.AUTH.INVALID_CREDENTIALS", message="Invalid credentials")
 
 
 class UserNotFound(DomainError):
     """Erreur métier : utilisateur introuvable."""
+
     def __init__(self) -> None:
         super().__init__(code="DOMAIN.USER.NOT_FOUND", message="User not found")
 
 
 class UserInactive(DomainError):
     """Erreur métier : compte désactivé."""
+
     def __init__(self) -> None:
         super().__init__(code="DOMAIN.USER.INACTIVE", message="User inactive")

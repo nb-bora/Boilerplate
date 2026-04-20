@@ -46,6 +46,7 @@ from app.adapters.cache.store import ICacheStore
 @dataclass(slots=True)
 class StoredResponse:
     """Représentation sérialisable d'une réponse HTTP stockée pour l'idempotency."""
+
     payload_hash: str
     status_code: int
     headers: dict[str, str]

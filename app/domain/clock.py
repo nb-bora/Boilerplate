@@ -22,4 +22,5 @@ from typing import Protocol
 
 class Clock(Protocol):
     """Port de temps (source injectable)."""
+
     def now(self) -> datetime: ...

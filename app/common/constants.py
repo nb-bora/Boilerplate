@@ -35,8 +35,10 @@ class ErrorCodes:
     - `TECH.*` : erreurs techniques (validation, auth, rate limit, interne).
     - `DOMAIN.*` : erreurs métier stables.
     """
+
     class TECH:
         """Codes techniques (HTTP-level)."""
+
         VALIDATION_REQUIRED = "TECH.VALIDATION.REQUIRED"
         VALIDATION_INVALID = "TECH.VALIDATION.INVALID"
         VALIDATION_FORMAT = "TECH.VALIDATION.FORMAT"
@@ -53,6 +55,7 @@ class ErrorCodes:
 
     class DOMAIN:
         """Codes métier (domain-level)."""
+
         USER_ALREADY_EXISTS = "DOMAIN.USER.ALREADY_EXISTS"
         USER_INACTIVE = "DOMAIN.USER.INACTIVE"
         USER_NOT_FOUND = "DOMAIN.USER.NOT_FOUND"

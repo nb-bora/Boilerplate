@@ -19,4 +19,5 @@ from app.domain.audit.entity import AuditLog
 
 class IAuditRepository(Protocol):
     """Port de persistance des `AuditLog`."""
+
     async def add(self, audit_log: AuditLog) -> None: ...

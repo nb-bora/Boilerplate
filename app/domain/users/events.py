@@ -29,6 +29,7 @@ from app.domain.base import DomainEvent
 @dataclass(frozen=True, slots=True)
 class UserRegistered(DomainEvent):
     """Émis après inscription (post-commit)."""
+
     aggregate_id: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
 
@@ -36,5 +37,6 @@ class UserRegistered(DomainEvent):
 @dataclass(frozen=True, slots=True)
 class UserLoggedIn(DomainEvent):
     """Émis après login (post-commit)."""
+
     aggregate_id: str = ""
     payload: dict[str, Any] = field(default_factory=dict)

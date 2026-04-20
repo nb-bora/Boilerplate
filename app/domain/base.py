@@ -52,6 +52,7 @@ class Entity:
     - `id` : ULID string 26.
     - `created_at` / `updated_at` : timestamps UTC.
     """
+
     id: str = field(default_factory=new_ulid)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -72,6 +73,7 @@ class DomainEvent:
     - `aggregate_id` : id de l'agrégat concerné (ex: user_id).
     - `payload` : données contextualisées (request_id/ip, attributs, etc.).
     """
+
     event_id: str = field(default_factory=new_ulid)
     occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     aggregate_id: str = ""

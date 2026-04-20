@@ -35,6 +35,7 @@ from app.domain.users.exceptions import UserNotFound
 
 class GetCurrentUser:
     """Use-case de récupération du user courant."""
+
     def __init__(self, *, uow) -> None:  # noqa: ANN001
         self.uow = uow
 

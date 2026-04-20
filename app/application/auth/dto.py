@@ -29,18 +29,21 @@ from pydantic import BaseModel, Field
 
 class RegisterInput(BaseModel):
     """Entrée de `RegisterUser`."""
+
     email: str
     password: str = Field(min_length=8, max_length=256)
 
 
 class LoginInput(BaseModel):
     """Entrée de `LoginUser`."""
+
     email: str
     password: str
 
 
 class TokenOutput(BaseModel):
     """Sortie commune : paire access/refresh tokens."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
