@@ -297,6 +297,6 @@ async def refresh(
                 jti=new_refresh_jti,
                 expires_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,
             ),
-            "token_type": "bearer",
+            "token_type": "bearer",  # nosec B105
         },
     )

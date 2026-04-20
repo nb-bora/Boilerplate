@@ -1,0 +1,12 @@
+exclude_dirs:
+  - tests
+  - alembic
+  - docs
+
+# On garde les règles actives par défaut.
+# Les faux positifs connus (ex: B105 sur "bearer" ou des codes d'erreur) sont gérés en inline via `# nosec B105`.
+skips: []
+
+# Plugins optionnels si besoin (vide = défaut).
+tests: []
+

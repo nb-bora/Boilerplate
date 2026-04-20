@@ -8,3 +8,4 @@ httpx>=0.27
 testcontainers[postgres,redis]>=4.0
 faker>=25.0
 asgi-lifespan>=2.1
+bandit>=1.9

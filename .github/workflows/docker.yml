@@ -4,16 +4,78 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag d'image à déployer (ex: v1.2.3). Laisser vide pour utiliser github.ref_name."
+        required: false
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
-          tags: fastapi-boilerplate:${{ github.ref_name }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ inputs.image_tag || github.ref_name }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve image tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "image=ghcr.io/${{ github.repository }}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via webhook (recommended)
+        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
+        shell: bash
+        run: |
+          curl -fsS -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"image\":\"${{ steps.vars.outputs.image }}\",\"ref\":\"${{ github.ref_name }}\"}" \
+            "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+
+      - name: Deploy via SSH (alternative)
+        if: ${{ secrets.DEPLOY_SSH_HOST != '' && secrets.DEPLOY_SSH_USER != '' && secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_SSH_COMMAND != '' }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Run SSH deploy command
+        if: ${{ secrets.DEPLOY_SSH_HOST != '' && secrets.DEPLOY_SSH_USER != '' && secrets.DEPLOY_SSH_KEY != '' && secrets.DEPLOY_SSH_COMMAND != '' }}
+        shell: bash
+        run: |
+          ssh -o StrictHostKeyChecking=no "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+            "${{ secrets.DEPLOY_SSH_COMMAND }}"
+
+      - name: Fail if no deploy method configured
+        if: ${{ secrets.DEPLOY_WEBHOOK_URL == '' && (secrets.DEPLOY_SSH_HOST == '' || secrets.DEPLOY_SSH_USER == '' || secrets.DEPLOY_SSH_KEY == '' || secrets.DEPLOY_SSH_COMMAND == '') }}
+        shell: bash
+        run: |
+          echo "Aucune méthode de déploiement configurée."
+          echo "Configure soit DEPLOY_WEBHOOK_URL, soit DEPLOY_SSH_HOST/DEPLOY_SSH_USER/DEPLOY_SSH_KEY/DEPLOY_SSH_COMMAND."
+          exit 1
 
