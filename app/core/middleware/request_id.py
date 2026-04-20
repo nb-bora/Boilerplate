@@ -20,6 +20,20 @@ Cas alternatifs
 
 Cas d'exception
 - Aucun : le middleware ne doit jamais faire échouer une requête ; il vise la robustesse DX/ops.
+
+Intervient dans
+--------------
+- Helpers enveloppe : `app/adapters/http/response.py` lit `request.state.request_id`.
+- Logging middleware : `app/core/middleware/logging.py` logge les IDs.
+- Contextvars : `app/core/context.py` expose `get_request_id/get_ip` pour les use-cases.
+
+Scénario nominal
+----------------
+1) Lire `X-Request-Id` et `X-Correlation-Id` entrants.
+2) Générer un ULID si `X-Request-Id` absent.
+3) Aligner corrélation sur request_id si absent.
+4) Injecter dans `request.state` + `contextvars`.
+5) Ajouter les headers en réponse.
 """
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -32,7 +46,12 @@ from app.core.context import ip_var, request_id_var
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        """Injecte `request_id`/`correlation_id` dans `request.state` et les headers de réponse."""
+        """
+        Injecte `request_id`/`correlation_id` dans `request.state` et les headers de réponse.
+
+        Cas alternatifs
+        - `request.client` absent : `ip_var` est set à None.
+        """
         incoming_correlation = request.headers.get("X-Correlation-Id")
         incoming_request_id = request.headers.get("X-Request-Id")
 

@@ -3,6 +3,40 @@ from __future__ import annotations
 """
 Configuration applicative (Pydantic Settings).
 
+Rôle
+----
+Ce module définit `Settings` (Pydantic BaseSettings) et `get_settings()` (singleton cache)
+pour centraliser la configuration runtime : env, secrets, DB, Redis, et flags.
+
+Objectifs
+---------
+- Charger `.env` (si présent) + variables d'environnement.
+- Fournir une API typée et stable.
+- Valider des politiques de sécurité (ex: CORS wildcard interdit en prod).
+
+Intervient dans
+--------------
+- Composition root : `app/main.py` charge et stocke `app.state.settings`.
+- Sécurité : `app/core/security.py` lit `APP_SECRET_KEY` + expirations.
+- Infra DB/Redis : engine et client sont construits à partir de ces settings.
+- Adapters : rate limiting, idempotency, Redis enabled, etc.
+
+Scénarios nominaux
+-----------------
+- Chargement : les champs ont des defaults permettant un clone/run rapide.
+- Parsing : `CORS_ORIGINS` est converti en liste via `cors_origins_list`.
+- Validation : `validate_cors_policy` bloque une configuration dangereuse en prod.
+
+Cas alternatifs
+--------------
+- `.env` absent : Pydantic lit uniquement l'environnement process.
+- `CORS_ORIGINS` avec espaces/valeurs vides : nettoyé/ignoré.
+
+Exceptions
+----------
+- Pydantic lève si types invalides (ex: bool mal formé).
+- `validate_cors_policy` lève `ValueError` si policy violée (prod + wildcard).
+
 Workflows documentés
 --------------------
 
@@ -34,6 +68,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """
+    Settings runtime typés.
+
+    Notes
+    - Les champs sont volontairement "DX-friendly" en dev.
+    - En prod, certaines politiques doivent être satisfaites (ex: secret fort, CORS strict).
+    """
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_ENV: str = Field(default="dev")
@@ -64,6 +105,15 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_cors_policy(self) -> Settings:
+        """
+        Valide les politiques de configuration.
+
+        Scénario nominal
+        - En dev/test/staging : pas de restriction supplémentaire.
+
+        Exception
+        - En prod : interdit `*` dans `CORS_ORIGINS`.
+        """
         # En prod, interdire le wildcard pour éviter une exposition involontaire.
         if self.APP_ENV == "prod" and "*" in self.cors_origins_list:
             raise ValueError("CORS wildcard interdit en production")
@@ -90,5 +140,8 @@ def get_settings() -> Settings:
 
     Cas nominal
     - Évite de reparcourir l'environnement à chaque injection.
+
+    Cas alternatifs
+    - En test : si besoin de recharger, il faut invalider le cache LRU (ou ne pas utiliser le singleton).
     """
     return Settings()

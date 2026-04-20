@@ -1,5 +1,40 @@
 from __future__ import annotations
 
+"""
+Store de cache unifié (Redis optionnel, fallback in-memory).
+
+Rôle
+----
+Fournir une interface unique (`ICacheStore`) utilisée par :
+- rate limiting (`app/adapters/cache/rate_limiter.py`)
+- idempotency (`app/adapters/cache/idempotency.py`)
+- blacklist JWT (via `app/adapters/http/dependencies.py` et `logout`).
+
+Objectifs
+---------
+- Permettre d'activer Redis via configuration sans changer le code métier.
+- Offrir un fallback in-memory utilisable en dev/test (non distribué, best-effort).
+
+Intervient dans
+--------------
+- Composition root : `app/main.py` instancie `InMemoryCacheStore` par défaut, et `RedisCacheStore` si Redis activé.
+
+Scénarios nominaux
+-----------------
+- Redis : opérations déléguées au client `redis.asyncio.Redis`.
+- In-memory : dictionnaire + TTL gérés en mémoire, protégés par un `asyncio.Lock`.
+
+Cas alternatifs & limitations
+----------------------------
+- In-memory :
+  - Non partagé entre processus/instances : rate limit/idempotency non distribués.
+  - Les TTL expirent via purge opportuniste lors des accès.
+
+Exceptions
+----------
+- Redis : erreurs réseau/timeout/auth remontent depuis la lib Redis (gérées plus haut si nécessaire).
+"""
+
 import asyncio
 from dataclasses import dataclass
 from time import time
@@ -9,6 +44,15 @@ from redis.asyncio import Redis
 
 
 class ICacheStore(Protocol):
+    """
+    Port de cache minimal pour features transverses.
+
+    Contrat
+    - `get` : retourne la valeur str stockée, ou None.
+    - `set` : stocke une valeur avec TTL.
+    - `delete` : supprime une clé.
+    - `incr` : incrémente un compteur et garantit un TTL (fenêtre rate limit).
+    """
     async def get(self, key: str) -> str | None: ...
 
     async def set(self, key: str, value: str, ttl: int) -> None: ...
@@ -19,6 +63,13 @@ class ICacheStore(Protocol):
 
 
 class RedisCacheStore(ICacheStore):
+    """
+    Implémentation Redis du cache store.
+
+    Scénario nominal
+    - Utilise `SET ... EX` pour TTL.
+    - `incr` : pipeline INCR + TTL, et applique EXPIRE si TTL absent.
+    """
     def __init__(self, client: Redis) -> None:
         self._client = client
 
@@ -49,6 +100,16 @@ class _Entry:
 
 
 class InMemoryCacheStore(ICacheStore):
+    """
+    Implémentation in-memory du cache store.
+
+    Scénario nominal
+    - Stocke `{key: _Entry(value, expires_at)}`.
+    - Purge des expirations faite avant chaque opération.
+
+    Cas alternatifs
+    - Si la valeur existante n'est pas un int lors de `incr`, repart à 1.
+    """
     def __init__(self) -> None:
         self._data: dict[str, _Entry] = {}
         self._lock = asyncio.Lock()

@@ -1,5 +1,53 @@
 from __future__ import annotations
 
+"""
+Use-case Application : RegisterUser.
+
+Rôle
+----
+Orchestrer l'inscription :
+- vérifier l'unicité email,
+- créer l'utilisateur (domaine),
+- persister (via repos du UoW),
+- émettre un événement de domaine,
+- retourner des tokens (access + refresh).
+
+Objectifs
+---------
+- Concentrer la logique d'orchestration (workflow) dans la couche Application.
+- Garder le domaine indépendant des détails de persistance/HTTP.
+- Produire des événements utilisables post-commit (audit, intégrations futures).
+
+Intervient dans
+--------------
+- Adapter HTTP : `app/adapters/http/v1/auth.py::register`
+- UoW : `app/adapters/persistence/unit_of_work.py`
+- Repos :
+  - users : `app/adapters/persistence/repositories/user.py`
+  - refresh_tokens : `app/adapters/persistence/repositories/refresh_token.py`
+- Sécurité : `app/core/security.py` (hash + JWT)
+- Contexte request : `app/core/context.py` (request_id, ip)
+
+Scénario nominal
+----------------
+1) `async with uow:` ouvre une session transactionnelle.
+2) `users.get_by_email` : si existe → conflit.
+3) Crée un `User` (Email VO, HashedPassword VO) et l'ajoute au repo.
+4) Crée un refresh token actif en DB.
+5) Bufferise un event `UserRegistered` (payload minimal + contexte request_id/ip).
+6) `uow.commit()` commit DB, puis dispatch post-commit.
+7) Retourne `TokenOutput` (JWT access + refresh).
+
+Cas alternatifs
+--------------
+- Si DB down, le commit échouera et remontera une exception (en HTTP → enveloppe 500).
+
+Exceptions attendues
+--------------------
+- `UserAlreadyExists` si email déjà enregistré (HTTP 409 via exception handler).
+- `ValueError` potentielle depuis `Email(...)` si format invalide (typiquement déjà filtré côté HTTP).
+"""
+
 from ulid import ULID
 
 from app.application.auth.dto import RegisterInput, TokenOutput
@@ -13,10 +61,20 @@ from app.domain.users.value_objects import Email, HashedPassword
 
 
 class RegisterUser:
+    """Use-case d'inscription."""
     def __init__(self, *, uow) -> None:  # noqa: ANN001
         self.uow = uow
 
     async def execute(self, data: RegisterInput) -> TokenOutput:
+        """
+        Exécute l'inscription.
+
+        Paramètres
+        - `data` : DTO applicatif (email + password).
+
+        Retour
+        - `TokenOutput` : access_token + refresh_token.
+        """
         settings = get_settings()
         async with self.uow:
             existing = await self.uow.users.get_by_email(data.email)

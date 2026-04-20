@@ -1,5 +1,25 @@
 from __future__ import annotations
 
+"""
+Modèle ORM : `audit_logs`.
+
+Rôle
+----
+Stocker des événements d'audit applicatifs (inscription, login, etc.) avec contexte
+(request_id, ip, metadata).
+
+Intervient dans
+--------------
+- Repo : `app/adapters/persistence/repositories/audit_log.py`
+- Handler : `app/infrastructure/audit_handler.py`
+- Migration : `alembic/versions/0002_auth_audit.py`
+
+Notes importantes
+-----------------
+- Le nom d'attribut Python `metadata` est réservé par SQLAlchemy ; on utilise donc `metadata_`
+  tout en conservant la colonne SQL `"metadata"`.
+"""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, String

@@ -1,5 +1,19 @@
 from __future__ import annotations
 
+"""
+Modèle ORM : `refresh_tokens`.
+
+Rôle
+----
+Persister les refresh tokens (rotation) avec `jti`, `expires_at`, `revoked_at`.
+
+Intervient dans
+--------------
+- Repo : `app/adapters/persistence/repositories/refresh_token.py`
+- Route refresh : `app/adapters/http/v1/auth.py`
+- Migration : `alembic/versions/0002_auth_audit.py`
+"""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, String

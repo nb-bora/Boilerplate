@@ -3,6 +3,29 @@ from __future__ import annotations
 """
 Infrastructure Redis (optionnel).
 
+Rôle
+----
+Fournir les primitives Redis :
+- construction d'un client async,
+- healthcheck (PING),
+- fermeture propre.
+
+Objectifs
+---------
+- Encapsuler Redis hors des couches domaine/application.
+- Permettre l'activation optionnelle via config (`REDIS_ENABLED`).
+
+Intervient dans
+--------------
+- Composition root : `app/main.py` crée le client si activé et exécute `check_redis`.
+- Readiness endpoint : `app/adapters/http/v1/health.py` lit `app.state.redis_ready`.
+- Cache store : `app/adapters/cache/store.py` peut être construit depuis ce client.
+
+Cas alternatifs / exceptions
+---------------------------
+- Redis down au boot : `check_redis` lève ; `app/main.py` capture et démarre en "degraded".
+- `ping()` retourne une valeur inattendue : `RuntimeError`.
+
 Workflows documentés
 --------------------
 

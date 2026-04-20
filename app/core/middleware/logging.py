@@ -1,5 +1,42 @@
 from __future__ import annotations
 
+"""
+Middleware de logging de requête (structlog).
+
+Rôle
+----
+Logguer la fin de chaque requête HTTP avec des champs structurés :
+`request_id`, `correlation_id`, `user_id`, `method`, `path`, `status_code`, `duration_ms`,
+et (si présent) `trace_id` / `span_id` via `traceparent`.
+
+Objectifs
+---------
+- Observabilité baseline sans OTel complet.
+- Corrélation requêtes ↔ logs via `request_id`.
+
+Intervient dans
+--------------
+- Montage middleware : `app/main.py` (ordre : security headers → request_id → logging → CORS)
+- Logger : `app/core/logging.py`
+- RequestIdMiddleware : `app/core/middleware/request_id.py` injecte `request.state.request_id`.
+
+Scénario nominal
+----------------
+1) Mesure le temps.
+2) Appelle le handler suivant.
+3) Extrait les IDs du `request.state` et le `traceparent`.
+4) Log un événement `request_finished`.
+
+Cas alternatifs
+--------------
+- Si `RequestIdMiddleware` n'a pas tourné : request_id/correlation_id peuvent être None.
+- Si `traceparent` invalide : trace_id/span_id restent None.
+
+Exceptions
+----------
+- Ce middleware ne doit pas casser la requête : toute exception devrait être évitée.
+"""
+
 import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -34,6 +71,7 @@ def _parse_traceparent(value: str | None) -> tuple[str | None, str | None]:
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware Starlette: log fin de requête en JSON (structlog)."""
     async def dispatch(self, request: Request, call_next):
         start = time.perf_counter()
         response = await call_next(request)

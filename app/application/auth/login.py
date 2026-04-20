@@ -1,5 +1,48 @@
 from __future__ import annotations
 
+"""
+Use-case Application : LoginUser.
+
+Rôle
+----
+Orchestrer la connexion :
+- récupérer l'utilisateur par email,
+- vérifier statut actif,
+- vérifier mot de passe (bcrypt),
+- persister un refresh token actif,
+- émettre un événement de domaine,
+- retourner access+refresh tokens.
+
+Objectifs
+---------
+- Implémenter l'anti-énumération : mêmes signaux d'erreur côté client pour
+  "email inconnu" et "mauvais mot de passe".
+- Garder HTTP/DB/Redis hors du domaine.
+
+Intervient dans
+--------------
+- Adapter HTTP : `app/adapters/http/v1/auth.py::login`
+- UoW / repos : `app/adapters/persistence/unit_of_work.py`
+- Sécurité : `app/core/security.py` (verify + JWT)
+- Contexte request : `app/core/context.py` (request_id, ip)
+
+Scénario nominal
+----------------
+1) Ouvre le UoW.
+2) Cherche user par email.
+3) Vérifie `is_active`.
+4) Vérifie mot de passe (constant-time via passlib).
+5) Ajoute un refresh token actif.
+6) Bufferise `UserLoggedIn` puis commit (dispatch post-commit).
+7) Retourne tokens.
+
+Cas alternatifs / exceptions attendues
+-------------------------------------
+- `InvalidCredentials` si user absent OU mdp incorrect (anti-énumération).
+- `UserInactive` si compte désactivé.
+- Exceptions DB au commit si infra down.
+"""
+
 from ulid import ULID
 
 from app.application.auth.dto import LoginInput, TokenOutput
@@ -11,10 +54,12 @@ from app.domain.users.exceptions import InvalidCredentials, UserInactive
 
 
 class LoginUser:
+    """Use-case de connexion."""
     def __init__(self, *, uow) -> None:  # noqa: ANN001
         self.uow = uow
 
     async def execute(self, data: LoginInput) -> TokenOutput:
+        """Exécute la connexion et retourne des tokens."""
         settings = get_settings()
         async with self.uow:
             user = await self.uow.users.get_by_email(data.email)

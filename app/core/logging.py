@@ -3,6 +3,35 @@ from __future__ import annotations
 """
 Configuration des logs structurés (JSON).
 
+Rôle
+----
+Configurer `structlog` pour produire des logs JSON homogènes.
+
+Objectifs
+---------
+- Logs structurés (machine-readable) pour ingestion (ELK, Loki, Datadog...).
+- `timestamp` UTC + `level` ajoutés automatiquement.
+- Format d'exception sérialisé (`format_exc_info`).
+
+Intervient dans
+--------------
+- Composition root : `app/main.py` appelle `configure_logging(APP_LOG_LEVEL)` au démarrage.
+- Middleware : `app/core/middleware/logging.py` logge `request_finished`.
+- Infra/event bus : logs d'erreur de handlers, etc.
+
+Scénarios nominaux
+-----------------
+- `configure_logging("info")` configure stdlib logging + structlog.
+- `get_logger()` retourne un BoundLogger prêt à `.info/.warning/.error`.
+
+Cas alternatifs
+--------------
+- `log_level` invalide : fallback INFO.
+
+Exceptions
+----------
+- Ne doit pas lever en usage normal ; les erreurs d'exception rendering sont encapsulées.
+
 Workflows documentés
 --------------------
 
@@ -30,6 +59,9 @@ def configure_logging(log_level: str = "info") -> None:
 
     Cas nominal
     - Le niveau de log est appliqué au logger stdlib et au BoundLogger structlog.
+
+    Exceptions
+    - Aucune attendue ; si un processor lève, `format_exc_info` capture l'exception.
     """
     logging.basicConfig(level=getattr(logging, log_level.upper(), logging.INFO))
 
@@ -54,5 +86,9 @@ def get_logger() -> structlog.stdlib.BoundLogger:
 
     Cas nominal
     - Utiliser `get_logger().info("event", key=value)` pour des logs JSON.
+
+    Cas alternatifs
+    - Dans certains environnements, la configuration peut être faite ailleurs ; `get_logger()`
+      retourne malgré tout un logger structlog (avec config par défaut).
     """
     return structlog.get_logger()

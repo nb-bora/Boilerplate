@@ -26,6 +26,14 @@ Erreur interne (500)
 ~~~~~~~~~~~~~~~~~~~~
 Cas nominal
 - Toute exception non gérée renvoie une enveloppe `TECH.INTERNAL`.
+
+Remarques d'architecture
+------------------------
+- La couche `domain/` ne connaît pas HTTP : les exceptions métier portent un `code` stable.
+- Cette couche Adapter mappe ces exceptions vers :
+  - un statut HTTP (401/403/404/409/422/500...),
+  - une enveloppe d'erreur conforme au contrat (`app/common/response_envelope.py`).
+- Les erreurs "techniques" (token invalide/expiré) sont capturées et normalisées.
 """
 
 from fastapi import Request

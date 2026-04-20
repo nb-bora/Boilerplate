@@ -3,6 +3,29 @@ from __future__ import annotations
 """
 Infrastructure base de données (SQLAlchemy async).
 
+Rôle
+----
+Fournir les primitives d'infrastructure DB :
+- création d'engine async,
+- création de factory de sessions,
+- healthcheck DB (SELECT 1),
+- helper lifespan pour disposer l'engine.
+
+Objectifs
+---------
+- Encapsuler SQLAlchemy async hors des layers domaine/application.
+- Offrir des primitives robustes pour la composition root (`app/main.py`).
+
+Intervient dans
+--------------
+- Composition root : `app/main.py` crée `engine` + `db_session_factory` et exécute `check_db`.
+- Readiness endpoint : `app/adapters/http/v1/health.py` lit `app.state.db_ready`.
+
+Cas alternatifs / exceptions
+---------------------------
+- DB down au boot : `check_db` lève ; `app/main.py` capture et démarre en "degraded".
+- URL invalide/driver manquant : erreurs SQLAlchemy lors de l'init ou première connexion.
+
 Workflows documentés
 --------------------
 
@@ -52,6 +75,12 @@ async def check_db(engine: AsyncEngine) -> None:
 
 
 async def lifespan_dispose_engine(engine: AsyncEngine) -> AsyncIterator[None]:
+    """
+    Context manager async utilitaire pour disposer un engine.
+
+    Usage
+    - Peut être utilisé dans un lifespan composable si besoin.
+    """
     try:
         yield
     finally:

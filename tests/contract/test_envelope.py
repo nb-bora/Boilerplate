@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+"""
+Tests de contrat : enveloppe de réponse.
+
+Rôle
+----
+S'assurer que les endpoints respectent le contrat d'enveloppe défini dans `app/common/response_envelope.py`.
+
+Intervient dans
+--------------
+- `app/adapters/http/response.py` (construction enveloppe)
+- `app/core/middleware/request_id.py` (request_id injecté)
+"""
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.anyio
 async def test_health_live_envelope_contract(app):
+    """Le `meta.request_id` doit matcher `X-Request-Id` et `errors` doit être null en succès."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/v1/health/live")
